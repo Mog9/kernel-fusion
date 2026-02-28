@@ -3,7 +3,7 @@
 import cupy as cp
 
 def benchmark(fn, x, iter = 20):
-    for _ in range(5):
+    for _ in range(5): #warmup
         fn(x)
     cp.cuda.runtime.deviceSynchronize()
 
@@ -16,15 +16,18 @@ def benchmark(fn, x, iter = 20):
     end.record()
     end.synchronize()
 
-    elapsed_ms = cp.cuda.get_elapsed_time(start, end)
-    return elapsed_ms / iter
+    return cp.cuda.get_elapsed_time(start, end) / iter
 
 
-def compute_bandwidth(B, N, time_ms, passes, dtype_bytes=4):
-    elements = B * N
-    bytes_per_tensor = elements * dtype_bytes
-    total_bytes = bytes_per_tensor * passes
-    time_s = time_ms / 1000
-    bandwidth_gbs = total_bytes / time_s / 1e9
+def compute_bandwidth_unfused(B, N, time_ms, dtype_bytes=4):
+    passes = 8
+    total_bytes = B * N * dtype_bytes * passes
+    bandwidth_gbs = total_bytes / (time_ms / 1000) / 1e9
+    return total_bytes / 1e6, bandwidth_gbs
 
-    return total_bytes / 1e6, bandwidth_gbs #mb/gb
+
+def compute_bandwidth_fused(B, N, time_ms, dtype_bytes=4):
+    passes = 2
+    total_bytes = B * N * dtype_bytes * passes
+    bandwidth_gbs = total_bytes / (time_ms / 1000) / 1e9
+    return total_bytes / 1e6, bandwidth_gbs
